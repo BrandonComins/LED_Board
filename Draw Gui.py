@@ -32,15 +32,54 @@ def chooseColor() -> tuple:
     print(color_code)
     return color_code
 
+def clearCanvas() -> None:
+    pass
+
+def saveImage() -> None:
+    pass
+
+def loadImage() -> None:
+    pass
+
 def makeColorButton() -> None:
     color_chooser = tk.Button(
         window,
         text="RGB",
         command = chooseColor
-        )
-    
+    )
     window.rowconfigure(row + 1, weight=0)
     color_chooser.grid(sticky="nswe", row= row + 2, column=round(column/2))
+
+
+def makeClearButton() -> None:
+    clear = tk.Button(
+        window,
+        text="Clear",
+        command=clearCanvas
+    )
+    
+    window.rowconfigure(row + 1, weight=0)
+    clear.grid(sticky="nswe", row= row + 2, column=column-3)
+
+def makeLoadButton() -> None:
+    load = tk.Button(
+        window,
+        text="Load",
+        command=loadImage
+    )
+    
+    window.rowconfigure(row + 1, weight=0)
+    load.grid(sticky="nswe", row= row + 2, column=0)
+
+def makeSaveButton() -> None:
+    save = tk.Button(
+        window,
+        text="Save",
+        command=saveImage
+    )
+    
+    window.rowconfigure(row + 1, weight=0)
+    save.grid(sticky="nswe", row= row + 2, column=column-1)
 
 
 if __name__== "__main__":
@@ -58,5 +97,8 @@ if __name__== "__main__":
             LEDButton(i, j)
 
     makeColorButton()
+    makeClearButton()
+    makeSaveButton()
+    makeLoadButton()
 
     window.mainloop()
