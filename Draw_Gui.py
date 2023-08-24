@@ -44,6 +44,22 @@ def clearCanvas() -> None:
             colorButtonList[i][j].resetColor()
 
 def saveImage() -> None:
+    def saveText(event=None) -> None:
+        if(event == None): # For save box
+            text : str = 'Saves/' + inputText.get("1.0","end-1c") + '.txt'
+        else: # For Enter Key
+            text : str = 'Saves/' + inputText.get("1.0","end-2c") + '.txt'
+        
+        questionBox.destroy()
+        
+        file = open(text, "w")
+        for i in range(row):
+            for j in range(column):
+                file.write(colorButtonList[i][j].getColor())
+                if(not (i == row - 1 and j == column - 1)):
+                    file.write(', ')
+            file.write('\n')
+    
     questionBox = tk.Toplevel(window)
     questionBox.title("Save Image")
     questionBox.geometry(str(("500x50+%d+%d" % (int(screenWidth/2.5), int(screenHeight/3)))))
@@ -63,23 +79,6 @@ def saveImage() -> None:
                  text ="save",
                  command = saveText)
     saveButton.pack(pady=1)
-
-
-    def saveText(event=None) -> None:
-        if(event == None): # For save box
-            text : str = 'Saves/' + inputText.get("1.0","end-1c") + '.txt'
-        else: # For Enter Key
-            text : str = 'Saves/' + inputText.get("1.0","end-2c") + '.txt'
-        
-        questionBox.destroy()
-        
-        file = open(text, "w")
-        for i in range(row):
-            for j in range(column):
-                file.write(colorButtonList[i][j].getColor())
-                if(not (i == row - 1 and j == column - 1)):
-                    file.write(', ')
-            file.write('\n')
 
 def loadImage() -> None:
     global color_code
