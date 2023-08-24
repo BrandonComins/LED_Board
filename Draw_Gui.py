@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import colorchooser
 import pyautogui as gui
+from tkinter import filedialog
 
 class LEDButton:
     def __init__(self, row : int, colunm : int) -> None:
@@ -23,7 +24,7 @@ class LEDButton:
 
     def setColor(self) -> None:
         global color_code
-        self.button.configure(bg = color_code[-1])
+        self.button.configure(bg = color_code)
     
     def resetColor(self) -> None:
         self.button.configure(bg = '#ffffff')
@@ -34,7 +35,7 @@ class LEDButton:
 
 def chooseColor() -> tuple:
     global color_code
-    color_code = colorchooser.askcolor(title ="Choose color")
+    color_code = colorchooser.askcolor(title ="Choose color")[-1]
     return color_code
 
 def clearCanvas() -> None:
@@ -82,7 +83,20 @@ def saveImage() -> None:
     saveButton.pack(pady=1)
 
 def loadImage() -> None:
-    pass
+    global color_code
+
+    file =  filedialog.askopenfilename(
+        initialdir="/Saves" ,
+        filetypes=[("Text files", "*.txt")]
+        )
+    
+    file = open(file, "r")
+    
+    for i, line in enumerate(file):
+        temp = line.split(", ")[:-1]
+        for j, color in enumerate(temp):
+            color_code = color
+            colorButtonList[i][j].setColor()
 
 def makeColorButton() -> None:
     color_chooser = tk.Button(
@@ -127,7 +141,7 @@ def makeSaveButton() -> None:
     
     
 if __name__== "__main__":
-    color_code = ((255, 255, 255), '#ffffff') # White
+    color_code = '#ffffff' # White
     # row : int = int(input("Row Size: ")) 
     # column : int = int(input("Column Size: "))
     row : int = 10 
