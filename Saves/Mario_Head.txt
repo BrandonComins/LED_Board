@@ -1,0 +1,10 @@
+#ffffff, #ffffff, #ffffff, #ffffff, #804000, #804000, #804000, #ffffff, #ffffff, #ffffff, 
+#ffffff, #ffffff, #ff0000, #804000, #ffb76f, #ffbe7d, #804000, #ffffff, #ffffff, #ffffff, 
+#ffffff, #ff0000, #ff0000, #804000, #804000, #804000, #ffbe7d, #ffbe7d, #ffffff, #ffffff, 
+#ffffff, #ff0000, #ff0000, #804000, #ffbe7d, #804000, #ffbe7d, #ffbe7d, #ffffff, #ffffff, 
+#ffffff, #ff0000, #ff0000, #ffbe7d, #ffbe7d, #ffbe7d, #ffbe7d, #ffbe7d, #ffffff, #ffffff, 
+#ffffff, #ff0000, #ff0000, #000000, #000000, #ffbe7d, #804000, #ffbe7d, #ffffff, #ffffff, 
+#ffffff, #ff0000, #ff0000, #ffbe7d, #ffbe7d, #804000, #804000, #ffbe7d, #ffffff, #ffffff, 
+#ffffff, #ffffff, #ff0000, #ffffff, #ffbe7d, #ffbe7d, #804000, #ffffff, #ffffff, #ffffff, 
+#ffffff, #ffffff, #ff0000, #ffffff, #ffbe7d, #ffbe7d, #804000, #ffffff, #ffffff, #ffffff, 
+#ffffff, #ffffff, #ffffff, #ffffff, #ffffff, #ffbe7d, #ffffff, #ffffff, #ffffff, #ffffff
