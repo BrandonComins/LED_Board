@@ -1,13 +1,15 @@
 import tkinter as tk
-from tkinter import colorchooser
 import pyautogui as gui
+import serial
+from tkinter import colorchooser
 from tkinter import filedialog
+
 
 class LEDButton:
     def __init__(self, row : int, colunm : int) -> None:
-        self.color = "#ffffff"
-        self.row = row
-        self.colunm = colunm
+        self.color : str = "#ffffff"
+        self.row : int = row
+        self.colunm : int = colunm
 
         self.button = tk.Button(
             window, 
@@ -25,9 +27,16 @@ class LEDButton:
     def setColor(self) -> None:
         global color_code
         self.button.configure(bg = color_code)
+        
+        if serialObj != None:
+            serialObj.write(b'%d, %d, %s' % (self.row, self.colunm, color_code))
+        
     
     def resetColor(self) -> None:
         self.button.configure(bg = '#ffffff')
+        
+        if serialObj != None:
+            serialObj.write(b'%d, %d, #ffffff' % (self.row, self.colunm))
 
     def getColor(self) -> str:
         return self.button.cget('bg')
@@ -136,9 +145,24 @@ def makeSaveButton() -> None:
     
     window.rowconfigure(row + 1, weight=0)
     save.grid(sticky="nswe", row= row + 2, column=column-1)
-    
-    
+
+def serialBegin(comPort : str) -> serial.Serial:
+    try:
+        serialObj = serial.Serial(comPort)
+        serialObj.baudrate = 9600
+        serialObj.bytesize = 8
+        serialObj.parity = 'N'
+        serialObj.stopbits = '1'
+    except serial.SerialException:
+        print("Could not open", comPort)
+        return None
+
+    return serialObj
+
 if __name__== "__main__":
+    # serialObj = serialBegin('COM' + input("Serial Number: "))
+    serialObj = serialBegin("COM24")
+
     color_code = '#ffffff' # White
     # row : int = int(input("Row Size: ")) 
     # column : int = int(input("Column Size: "))
