@@ -97,13 +97,16 @@ def loadImage() -> None:
         filetypes=[("Text files", "*.txt")]
     )
     
-    file = open(file, "r")
-    
-    for i, line in enumerate(file):
-        temp = line.split(", ")[:-1]
-        for j, color in enumerate(temp):
-            color_code = color
-            colorButtonList[i][j].setColor()
+    try:
+        file = open(file, "r")
+        
+        for i, line in enumerate(file):
+            temp = line.split(", ")[:-1]
+            for j, color in enumerate(temp):
+                color_code = color
+                colorButtonList[i][j].setColor()
+    except FileNotFoundError:
+        pass
 
 def makeColorButton() -> None:
     color_chooser = tk.Button(
