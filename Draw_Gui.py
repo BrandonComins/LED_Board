@@ -29,7 +29,8 @@ class LEDButton:
         self.button.configure(bg = color_code)
         
         if serialObj != None:
-            serialObj.write(b'%d, %d, %s' % (self.row, self.colunm, Hex_RGB(color_code)))
+            serialObj.write(('%s, %s' % ((str(self.row) + str(self.colunm)), str(Hex_RGB(color_code)))).encode())
+        
         
     
     def resetColor(self) -> None:
