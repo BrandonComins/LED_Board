@@ -16,8 +16,8 @@ class LEDButton:
             compound = tk.LEFT,
             bg = self.color,
             command=self.setColor,
-            height= 3,
-            width= 1
+            height= 5,
+            width= 5
         )
 
         self.button.grid(sticky="nswe", row=j, column=i)
