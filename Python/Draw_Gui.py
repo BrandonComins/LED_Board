@@ -17,8 +17,8 @@ class LEDButton:
             compound = tk.LEFT,
             bg = color_code,
             command=self.doAction,
-            height= 5,
-            width= 5
+            height= 10,
+            width= 10
         )
 
         self.button.grid(sticky="nswe", row=j, column=i)
@@ -104,13 +104,13 @@ def saveImage() -> None:
 def loadImage() -> None:
     global color_code
 
-    file =  filedialog.askopenfilename(
-        initialdir= os.curdir + "/Python/Saves/",
-        filetypes=[("Text files", "*.txt")]
+    file_name =  filedialog.askopenfilename(
+        initialdir = os.curdir + "/Python/Saves/",
+        filetypes = [("Text files", "*.txt")]
     )
     
     try:
-        file = open(file, "r")
+        file = open(file_name, "r")
         
         for i, line in enumerate(file):
             temp = line.split(", ")[:-1]
@@ -118,8 +118,27 @@ def loadImage() -> None:
                 color_code = color
                 colorButtonList[i][j].setColor()
     except FileNotFoundError:
-        pass
+        print(file_name + " not found")
 
+def loadMany() -> None:
+    global color_code
+    path_name = filedialog.askdirectory(initialdir=os.curdir + "/Python/Saves/")
+    files = os.listdir(path_name)
+    print(files)
+
+    for file_name in files:
+        try:
+            file = open(path_name + '/' + file_name, "r")
+            print(file_name)
+            for i, line in enumerate(file):
+                temp = line.split(", ")[:-1]
+                for j, color in enumerate(temp):
+                    color_code = color
+                    colorButtonList[i][j].setColor()
+            window.after(5000)
+        except FileNotFoundError:
+            print(file_name + " not found")
+             
 
 def eyeDrop() -> None:
     global button_mode
@@ -156,6 +175,16 @@ def makeLoadButton() -> None:
     
     window.rowconfigure(row + 1, weight=0)
     load.grid(sticky="nswe", row= row + 2, column=0)
+
+def makeLoadManyButton() -> None:
+    load = tk.Button(
+        window,
+        text="Anim",
+        command=loadMany
+    )
+    
+    window.rowconfigure(row + 1, weight=0)
+    load.grid(sticky="nswe", row= row + 2, column=1)
 
 def makeSaveButton() -> None:
     save = tk.Button(
@@ -222,6 +251,7 @@ if __name__== "__main__":
     makeClearButton()
     makeSaveButton()
     makeLoadButton()
+    makeLoadManyButton()
     makeColorPickerButton()
 
     window.mainloop()
