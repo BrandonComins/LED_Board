@@ -14,8 +14,8 @@ class LEDButton:
         self.button = tk.Button(
             window, 
             compound = tk.LEFT,
-            bg = self.color,
-            command=self.setColor,
+            bg = color_code,
+            command=self.doAction,
             height= 5,
             width= 5
         )
@@ -24,13 +24,24 @@ class LEDButton:
         window.columnconfigure(self.colunm, weight=1)
         window.rowconfigure(self.row, weight=1)
 
+    def doAction(self):
+        global button_mode
+        if button_mode == True:
+            self.setColor()
+        else:
+            global color_code
+            color_code = self.getColor()
+            button_mode = True
+            window.config(cursor="arrow")
+
     def setColor(self) -> None:
         global color_code
         self.button.configure(bg = color_code)
         
         if serialObj != None:
-            serialObj.write(('%s, %s' % ((str(self.row) + str(self.colunm)), str(Hex_RGB(color_code)))).encode())
-        
+            serialObj.write(('%s, %s' % (
+                (str(self.row) + str(self.colunm)), 
+                 str(Hex_RGB(color_code)))).replace(')', '').replace('(','').replace(',', '').encode())
         
     def resetColor(self) -> None:
         self.button.configure(bg = '#ffffff')
@@ -108,6 +119,12 @@ def loadImage() -> None:
     except FileNotFoundError:
         pass
 
+
+def eyeDrop() -> None:
+    global button_mode
+    button_mode = False
+    window.config(cursor="plus")
+
 def makeColorButton() -> None:
     color_chooser = tk.Button(
         window,
@@ -149,6 +166,17 @@ def makeSaveButton() -> None:
     window.rowconfigure(row + 1, weight=0)
     save.grid(sticky="nswe", row= row + 2, column=column-1)
 
+def makeColorPickerButton() -> None:
+    picker = tk.Button(
+        window,
+        text="Picker",
+        command=eyeDrop
+    )
+    
+    window.rowconfigure(row + 1, weight=0)
+    picker.grid(sticky="nswe", row= row + 2, column= round(column/2) - 1)
+
+
 def serialBegin(comPort : str) -> serial.Serial:
     try:
         serialObj = serial.Serial(comPort)
@@ -169,7 +197,8 @@ if __name__== "__main__":
     # serialObj = serialBegin('COM' + input("Serial Number: "))
     serialObj = serialBegin("COM24")
 
-    color_code = '#ffffff' # White
+    button_mode : bool = True
+    color_code : str = '#ffffff' # White
     # row : int = int(input("Row Size: ")) 
     # column : int = int(input("Column Size: "))
     row : int = 10 
@@ -192,5 +221,6 @@ if __name__== "__main__":
     makeClearButton()
     makeSaveButton()
     makeLoadButton()
+    makeColorPickerButton()
 
     window.mainloop()
