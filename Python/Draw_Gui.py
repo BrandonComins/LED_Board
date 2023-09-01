@@ -1,6 +1,7 @@
 import tkinter as tk
 import pyautogui as gui
 import serial
+import os
 from tkinter import colorchooser
 from tkinter import filedialog
 
@@ -66,13 +67,13 @@ def clearCanvas() -> None:
 def saveImage() -> None:
     def saveText(event=None) -> None:
         if(event == None): # For save box
-            text : str = 'Saves/' + inputText.get("1.0","end-1c") + '.txt'
+            text : str = os.curdir + "/Python/Saves/" + inputText.get("1.0","end-1c") + '.txt'
         else: # For Enter Key
-            text : str = 'Saves/' + inputText.get("1.0","end-2c") + '.txt'
+            text : str = os.curdir + "/Python/Saves/" + inputText.get("1.0","end-2c") + '.txt'
         
         questionBox.destroy()
         
-        file = open(text, "w")
+        file = open(text, 'w')
         for i in range(row):
             for j in range(column):
                 file.write(colorButtonList[i][j].getColor())
@@ -104,7 +105,7 @@ def loadImage() -> None:
     global color_code
 
     file =  filedialog.askopenfilename(
-        initialdir="/Saves" ,
+        initialdir= os.curdir + "/Python/Saves/",
         filetypes=[("Text files", "*.txt")]
     )
     
