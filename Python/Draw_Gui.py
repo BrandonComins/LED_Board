@@ -2,6 +2,8 @@ import tkinter as tk
 import pyautogui as gui
 import serial
 import os
+import time
+from threading import Thread
 from tkinter import colorchooser
 from tkinter import filedialog
 
@@ -13,7 +15,7 @@ class LEDButton:
         self.colunm : int = colunm
 
         self.button = tk.Button(
-            window, 
+            window,
             compound = tk.LEFT,
             bg = color_code,
             command=self.doAction,
@@ -37,16 +39,17 @@ class LEDButton:
 
     def setColor(self) -> None:
         global color_code
-        self.button.configure(bg = color_code)
-        
-        if serialObj != None:
-            serialObj.write(('%s, %s' % (
-                (str(self.row) + str(self.colunm)), 
-                 str(Hex_RGB(color_code)))).replace(')', '').replace('(','').replace(',', '').encode())
-        
+        if self.button.cget('background') != color_code:
+            self.button.configure(bg = color_code)
+
+            if serialObj != None:
+                serialObj.write(('%s, %s' % (
+                    (str(self.row) + str(self.colunm)),
+                    str(Hex_RGB(color_code)))).replace(')', '').replace('(','').replace(',', '').encode())
+
     def resetColor(self) -> None:
         self.button.configure(bg = '#ffffff')
-        
+
         if serialObj != None:
             serialObj.write(b'%d, %d, #ffffff' % (self.row, self.colunm))
 
@@ -60,6 +63,9 @@ def chooseColor() -> tuple:
     return color_code
 
 def clearCanvas() -> None:
+    global animate
+    animate = False
+
     for i in range(row):
         for j in range(column):
             colorButtonList[i][j].resetColor()
@@ -70,9 +76,9 @@ def saveImage() -> None:
             text : str = os.curdir + "/Python/Saves/" + inputText.get("1.0","end-1c") + '.txt'
         else: # For Enter Key
             text : str = os.curdir + "/Python/Saves/" + inputText.get("1.0","end-2c") + '.txt'
-        
+
         questionBox.destroy()
-        
+
         file = open(text, 'w')
         for i in range(row):
             for j in range(column):
@@ -80,7 +86,7 @@ def saveImage() -> None:
                 if(not (i == row - 1 and j == column - 1)):
                     file.write(', ')
             file.write('\n')
-    
+
     questionBox = tk.Toplevel(window)
     questionBox.title("Save Image")
     questionBox.geometry(str(("500x50+%d+%d" % (int(screenWidth/2.5), int(screenHeight/3)))))
@@ -90,11 +96,11 @@ def saveImage() -> None:
     inputText = tk.Text(questionBox, height = 1,
                 width = 25,
                 bg = "light yellow")
-    
+
     inputText.pack(side= 'left', pady = 10, padx = 10)
 
     tk.Label(questionBox, text=".txt").pack(side = 'left', pady = 10, padx = 10)
-    
+
     saveButton = tk.Button(questionBox, height = 2,
                  width = 10,
                  text ="save",
@@ -108,10 +114,16 @@ def loadImage() -> None:
         initialdir = os.curdir + "/Python/Saves/",
         filetypes = [("Text files", "*.txt")]
     )
-    
+
+    loadImage2(file_name)
+
+
+def loadImage2(file_name : str) -> None:
+    global color_code
+
     try:
         file = open(file_name, "r")
-        
+
         for i, line in enumerate(file):
             temp = line.split(", ")[:-1]
             for j, color in enumerate(temp):
@@ -120,25 +132,30 @@ def loadImage() -> None:
     except FileNotFoundError:
         print(file_name + " not found")
 
+
 def loadMany() -> None:
+    global animate
     global color_code
+
+    animate = True
     path_name = filedialog.askdirectory(initialdir=os.curdir + "/Python/Saves/")
     files = os.listdir(path_name)
     print(files)
 
-    for file_name in files:
-        try:
-            file = open(path_name + '/' + file_name, "r")
+    i : int = 0
+    now : time = time.time()
+    while(animate == True):
+        if(i == len(files)):
+            i = 0
+
+        file_name = files[i]
+        loadImage2(path_name+'/'+file_name)
+
+        if(int(time.time() - now) >= 2):
             print(file_name)
-            for i, line in enumerate(file):
-                temp = line.split(", ")[:-1]
-                for j, color in enumerate(temp):
-                    color_code = color
-                    colorButtonList[i][j].setColor()
-            window.after(5000)
-        except FileNotFoundError:
-            print(file_name + " not found")
-             
+            i+=1
+            now = time.time()
+
 
 def eyeDrop() -> None:
     global button_mode
@@ -162,7 +179,7 @@ def makeClearButton() -> None:
         text="Clear",
         command=clearCanvas
     )
-    
+
     window.rowconfigure(row + 1, weight=0)
     clear.grid(sticky="nswe", row= row + 2, column=column-3)
 
@@ -172,7 +189,7 @@ def makeLoadButton() -> None:
         text="Load",
         command=loadImage
     )
-    
+
     window.rowconfigure(row + 1, weight=0)
     load.grid(sticky="nswe", row= row + 2, column=0)
 
@@ -180,9 +197,9 @@ def makeLoadManyButton() -> None:
     load = tk.Button(
         window,
         text="Anim",
-        command=loadMany
+        command= lambda: Thread(target=loadMany).start()
     )
-    
+
     window.rowconfigure(row + 1, weight=0)
     load.grid(sticky="nswe", row= row + 2, column=1)
 
@@ -192,7 +209,7 @@ def makeSaveButton() -> None:
         text="Save",
         command=saveImage
     )
-    
+
     window.rowconfigure(row + 1, weight=0)
     save.grid(sticky="nswe", row= row + 2, column=column-1)
 
@@ -202,7 +219,7 @@ def makeColorPickerButton() -> None:
         text="Picker",
         command=eyeDrop
     )
-    
+
     window.rowconfigure(row + 1, weight=0)
     picker.grid(sticky="nswe", row= row + 2, column= round(column/2) - 1)
 
@@ -229,9 +246,10 @@ if __name__== "__main__":
 
     button_mode : bool = True
     color_code : str = '#ffffff' # White
-    # row : int = int(input("Row Size: ")) 
+    animate : bool = False
+    # row : int = int(input("Row Size: "))
     # column : int = int(input("Column Size: "))
-    row : int = 10 
+    row    : int = 10
     column : int = 10
 
     screenWidth, screenHeight = gui.size()
@@ -239,14 +257,14 @@ if __name__== "__main__":
     window.geometry(str(("500x500+%d+%d" % (int(screenWidth/2.5), int(screenHeight/3)))))
     window.attributes('-topmost', 1)
     window.title("Color Grid")
-    
+
     colorButtonList = []
     for i in range(row):
         colorButtonList.append([])
         for j in range(column):
             Button = LEDButton(i, j)
             colorButtonList[i].append(Button)
-    
+
     makeColorButton()
     makeClearButton()
     makeSaveButton()
