@@ -43,9 +43,11 @@ class LEDButton:
             self.button.configure(bg = color_code)
 
             if serialObj != None:
-                serialObj.write(('%s, %s' % (
-                    (str(self.row) + str(self.colunm)),
-                    str(Hex_RGB(color_code)))).replace(')', '').replace('(','').replace(',', '').encode())
+                led_index = (self.row * column) + self.colunm
+                rgb = Hex_RGB(color_code)
+
+                payload = f"{led_index} {rgb[0]} {rgb[1]} {rgb[2]}"
+                serialObj.write(payload.encode())
 
     def resetColor(self) -> None:
         self.button.configure(bg = '#ffffff')
@@ -244,7 +246,7 @@ def Hex_RGB(hex : str) -> tuple:
 
 if __name__== "__main__":
     # serialObj = serialBegin('COM' + input("Serial Number: "))
-    serialObj = serialBegin("COM24")
+    serialObj = serialBegin("COM4")
 
     button_mode : bool = True
     color_code : str = '#ffffff' # White

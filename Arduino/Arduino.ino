@@ -20,23 +20,16 @@ void setup(){
   Serial.begin(9600);
 }
 
-void loop()
-{
-  if(debug) {
-    if(Serial.available()){
-      String input = Serial.readString();
-      split(input, ' ');
+void loop() {
+  if (!debug && Serial.available() > 0) {
+    // Read until a newline for faster response
+    String input = Serial.readStringUntil('\n'); 
+    split(input, ' ');
 
-      strip.setPixelColor(
-        colorArr[0],
-        colorArr[1],
-        colorArr[2],
-        colorArr[3]
-      );
-      strip.show();
-    }
-  }else{
-      test_LEDS();
+    strip.setPixelColor(colorArr[0], colorArr[1], colorArr[2], colorArr[3]);
+    strip.show();
+  } else if (debug) {
+    test_LEDS();
   }
 }
 
