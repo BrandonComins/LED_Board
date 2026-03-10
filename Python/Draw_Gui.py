@@ -234,7 +234,7 @@ def serialBegin(comPort : str) -> serial.Serial:
         serialObj.baudrate = 9600
         serialObj.bytesize = 8
         serialObj.parity = 'N'
-        serialObj.stopbits = '1'
+        serialObj.stopbits = serial.STOPBITS_ONE
     except serial.SerialException:
         print("Could not open", comPort)
         return None
