@@ -121,19 +121,24 @@ def loadImage() -> None:
     loadImage2(file_name)
 
 
-def loadImage2(file_name : str) -> None:
+def loadImage2(file_name: str) -> None:
     global color_code
-
     try:
-        file = open(file_name, "r")
-
-        for i, line in enumerate(file):
-            temp = line.split(", ")[:-1]
-            for j, color in enumerate(temp):
-                color_code = color
-                colorButtonList[i][j].setColor()
+        with open(file_name, "r") as file:
+            for i, line in enumerate(file):
+                colors = line.strip().replace('\n', '').split(", ")
+                for j, color in enumerate(colors):
+                    if color: # ensure it's not empty
+                        colorButtonList[i][j].button.configure(bg=color)
+                        
+                        led_index = (i * column) + j
+                        r, g, b = Hex_RGB(color)
+                        payload = f"{led_index} {r} {g} {b}\n"
+                        if serialObj:
+                            serialObj.write(payload.encode())
+                            time.sleep(0.005) # 5ms delay to let Arduino breathe
     except FileNotFoundError:
-        print(file_name + " not found")
+        print(f"{file_name} not found")
 
 
 def loadMany() -> None:
@@ -247,6 +252,9 @@ def Hex_RGB(hex : str) -> tuple:
 if __name__== "__main__":
     # serialObj = serialBegin('COM' + input("Serial Number: "))
     serialObj = serialBegin("COM4")
+    if serialObj:
+        print("Connected! Waiting for Arduino to reset...")
+        time.sleep(2) # CRITICAL: Arduinos reset when serial opens
 
     button_mode : bool = True
     color_code : str = '#ffffff' # White
