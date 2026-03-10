@@ -72,10 +72,11 @@ def clearCanvas() -> None:
 
 def saveImage() -> None:
     def saveText(event=None) -> None:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
         if(event == None): # For save box
-            text : str = os.curdir + "/Python/Saves/" + inputText.get("1.0","end-1c") + '.txt'
+            text : str = script_dir + "/Saves/" + inputText.get("1.0","end-1c") + '.txt'
         else: # For Enter Key
-            text : str = os.curdir + "/Python/Saves/" + inputText.get("1.0","end-2c") + '.txt'
+            text : str = script_dir + "/Saves/" + inputText.get("1.0","end-2c") + '.txt'
 
         questionBox.destroy()
 
@@ -140,6 +141,7 @@ def loadMany() -> None:
     animate = True
     path_name = filedialog.askdirectory(initialdir=os.curdir + "/Python/Saves/")
     files = os.listdir(path_name)
+    files.sort()
     print(files)
 
     i : int = 0
@@ -151,7 +153,7 @@ def loadMany() -> None:
         file_name = files[i]
         loadImage2(path_name+'/'+file_name)
 
-        if(int(time.time() - now) >= 2):
+        if(int(time.time() - now) >= .5):
             print(file_name)
             i+=1
             now = time.time()
