@@ -7,10 +7,11 @@ from threading import Thread
 from tkinter import colorchooser
 from tkinter import filedialog
 
+off_color : str = '#000000'
 
 class LEDButton:
     def __init__(self, row : int, colunm : int) -> None:
-        self.color : str = "#ffffff"
+        self.color : str = off_color
         self.row : int = row
         self.colunm : int = colunm
 
@@ -50,10 +51,10 @@ class LEDButton:
                 serialObj.write(payload.encode())
 
     def resetColor(self) -> None:
-        self.button.configure(bg = '#ffffff')
+        self.button.configure(bg = off_color)
 
         if serialObj != None:
-            serialObj.write(b'%d, %d, #ffffff' % (self.row, self.colunm))
+            serialObj.write(b'%d, %d, #000000' % (self.row, self.colunm))
 
     def getColor(self) -> str:
         return self.button.cget('bg')
@@ -111,34 +112,62 @@ def saveImage() -> None:
     saveButton.pack(pady=1)
 
 def loadImage() -> None:
-    global color_code
+    # Get the directory where the script is actually located
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    initial_dir = os.path.join(script_dir, "Saves")
+    
+    # Create directory if it doesn't exist to avoid errors
+    if not os.path.exists(initial_dir):
+        os.makedirs(initial_dir)
 
-    file_name =  filedialog.askopenfilename(
-        initialdir = os.curdir + "/Python/Saves/",
-        filetypes = [("Text files", "*.txt")]
+    file_path = filedialog.askopenfilename(
+        initialdir=initial_dir,
+        filetypes=[("Text files", "*.txt")]
     )
 
-    loadImage2(file_name)
+    if file_path: # Only proceed if a file was selected
+        loadImage2(file_path)
 
 
 def loadImage2(file_name: str) -> None:
-    global color_code
+    if not file_name:
+        return
+
     try:
         with open(file_name, "r") as file:
-            for i, line in enumerate(file):
-                colors = line.strip().replace('\n', '').split(", ")
+            # Read all lines and strip whitespace
+            lines = [line.strip() for line in file if line.strip()]
+            
+            for i, line in enumerate(lines):
+                if i >= row: break # Safety: don't exceed grid rows
+                
+                # Split and filter out any empty strings caused by trailing commas
+                colors = [c.strip() for c in line.split(",") if c.strip()]
+                
                 for j, color in enumerate(colors):
-                    if color: # ensure it's not empty
-                        colorButtonList[i][j].button.configure(bg=color)
-                        
+                    if j >= column: break # Safety: don't exceed grid columns
+                    
+                    # 1. Update the GUI object
+                    # Note: We use colorButtonList[i][j] to match your save order
+                    colorButtonList[i][j].button.configure(bg=color)
+                    
+                    # 2. Update the Arduino Hardware
+                    if serialObj and serialObj.is_open:
+                        # Ensure led_index matches your setColor logic: (row * total_columns) + col
                         led_index = (i * column) + j
                         r, g, b = Hex_RGB(color)
+                        
+                        # Added \n to ensure the Arduino knows the command ended
                         payload = f"{led_index} {r} {g} {b}\n"
-                        if serialObj:
-                            serialObj.write(payload.encode())
-                            time.sleep(0.005) # 5ms delay to let Arduino breathe
+                        serialObj.write(payload.encode())
+                        
+                        # 2ms - 5ms delay is usually needed so Arduino doesn't drop packets
+                        time.sleep(0.002) 
+                        
     except FileNotFoundError:
-        print(f"{file_name} not found")
+        print(f"Error: {file_name} not found")
+    except Exception as e:
+        print(f"Error loading image: {e}")
 
 
 def loadMany() -> None:
@@ -257,7 +286,7 @@ if __name__== "__main__":
         time.sleep(2) # CRITICAL: Arduinos reset when serial opens
 
     button_mode : bool = True
-    color_code : str = '#ffffff' # White
+    color_code : str = off_color # White
     animate : bool = False
     # row : int = int(input("Row Size: "))
     # column : int = int(input("Column Size: "))
