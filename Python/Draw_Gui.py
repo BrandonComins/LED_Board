@@ -1,36 +1,33 @@
 import tkinter as tk
-import pyautogui as gui
 import serial
 import os
 import time
 from threading import Thread
-from tkinter import colorchooser
-from tkinter import filedialog
+from tkinter import colorchooser, filedialog
 
-off_color : str = '#000000'
+# Constants
+off_color = '#000000'
+row_count = 10
+col_count = 10
 
 class LEDButton:
-    def __init__(self, row : int, colunm : int) -> None:
-        self.color : str = off_color
-        self.row : int = row
-        self.colunm : int = colunm
-
+    def __init__(self, r, c):
+        self.row = r
+        self.col = c
         self.button = tk.Button(
             window,
-            compound = tk.LEFT,
-            bg = color_code,
+            bg=off_color,
             command=self.doAction,
-            height= 10,
-            width= 10
+            height=2,
+            width=4
         )
-
-        self.button.grid(sticky="nswe", row=j, column=i)
-        window.columnconfigure(self.colunm, weight=1)
+        self.button.grid(sticky="nswe", row=self.row, column=self.col)
+        window.columnconfigure(self.col, weight=1)
         window.rowconfigure(self.row, weight=1)
 
     def doAction(self):
         global button_mode
-        if button_mode == True:
+        if button_mode:
             self.setColor()
         else:
             global color_code
@@ -38,279 +35,209 @@ class LEDButton:
             button_mode = True
             window.config(cursor="arrow")
 
-    def setColor(self) -> None:
-        global color_code
-        if self.button.cget('background') != color_code:
-            self.button.configure(bg = color_code)
+    def setColor(self, target_color=None):
+        global color_code, brightness, serialObj
+        new_color = target_color if target_color else color_code
+        
+        self.button.configure(bg=new_color)
 
-            if serialObj != None:
-                led_index = (self.row * column) + self.colunm
-                rgb = Hex_RGB(color_code)
+        if serialObj and serialObj.is_open:
+            # --- RESTORED INDEX MATH (Serpentine) ---
+            if self.row % 2 == 0:
+                target_col = (col_count - 1) - self.col
+            else:
+                target_col = self.col
+            led_index = (self.row * col_count) + target_col
 
-                payload = f"{led_index} {rgb[0]} {rgb[1]} {rgb[2]}"
-                serialObj.write(payload.encode())
+            # --- CONVERT COLOR ---
+            r, g, b = Hex_RGB(new_color)
+            r_val = int(r * brightness)
+            g_val = int(g * brightness)
+            b_val = int(b * brightness)
 
-    def resetColor(self) -> None:
-        self.button.configure(bg = off_color)
+            # --- SEND DATA ---
+            payload = f"{int(led_index)} {r_val} {g_val} {b_val}\n"
+            serialObj.write(payload.encode('utf-8'))
 
-        if serialObj != None:
-            serialObj.write(b'%d, %d, #000000' % (self.row, self.colunm))
-
-    def getColor(self) -> str:
+    def getColor(self):
         return self.button.cget('bg')
 
+# --- Logic Functions ---
 
-def chooseColor() -> tuple:
+def updateBrightness(val):
+    global brightness
+    brightness = float(val) / 100.0
+    
+    # This loop refreshes all buttons instantly when you slide the bar
+    if serialObj and serialObj.is_open:
+        for r in range(row_count):
+            for c in range(col_count):
+                current_hex = colorButtonList[r][c].getColor()
+                colorButtonList[r][c].setColor(current_hex)
+            window.update_idletasks() # Keeps the slider smooth
+
+def Hex_RGB(hex_str):
+    hex_str = hex_str.lstrip('#')
+    return tuple(int(hex_str[i:i+2], 16) for i in (0, 2, 4))
+
+def chooseColor():
     global color_code
-    color_code = colorchooser.askcolor(title ="Choose color")[-1]
+    chosen = colorchooser.askcolor(title="Choose color")[-1]
+    if chosen:
+        color_code = chosen
     return color_code
 
-def clearCanvas() -> None:
+def clearCanvas():
+    global animate
+    animate = False
+    print("Clearing Matrix...")
+    for r in range(row_count):
+        for c in range(col_count):
+            colorButtonList[r][c].setColor(off_color)
+            time.sleep(0.005) # Slightly faster clear
+        window.update() 
+    print("Clear Complete.")
+
+def fillCanvas():
+    global color_code
+    print(f"Filling Matrix with {color_code}...")
+    for r in range(row_count):
+        for c in range(col_count):
+            colorButtonList[r][c].setColor(color_code)
+            time.sleep(0.005)
+        window.update()
+    print("Fill Complete.")
+
+def testRainbow():
+    if serialObj and serialObj.is_open:
+        serialObj.write(b"T\n")
+
+def saveImage():
+    path = os.path.join(os.path.dirname(__file__), "Saves")
+    if not os.path.exists(path):
+        os.makedirs(path)
+        
+    f_path = filedialog.asksaveasfilename(initialdir=path, defaultextension=".txt", 
+                                         filetypes=[("Text files", "*.txt")])
+    if f_path:
+        with open(f_path, "w") as f:
+            for r_file in range(row_count):
+                row_string_list = []
+                for c_file in range(col_count):
+                    # Fixed rotation: reverse the "Mario flip"
+                    gui_row = c_file
+                    gui_col = (row_count - 1) - r_file
+                    color = colorButtonList[gui_row][gui_col].getColor()
+                    row_string_list.append(color)
+                
+                line = ", ".join(row_string_list) + ", \n"
+                f.write(line)
+        print(f"Saved: {os.path.basename(f_path)}")
+
+def loadImage():
+    path = os.path.join(os.path.dirname(__file__), "Saves")
+    f_path = filedialog.askopenfilename(initialdir=path, filetypes=[("Text", "*.txt")])
+    if f_path:
+        with open(f_path, "r") as f:
+            file_data = []
+            for line in f:
+                if line.strip():
+                    colors = [c.strip() for c in line.split(",") if c.strip()]
+                    file_data.append(colors)
+
+        for r in range(len(file_data)):
+            for c in range(len(file_data[r])):
+                hex_val = file_data[r][c]
+                target_row = c
+                target_col = (col_count - 1) - r
+                if 0 <= target_row < row_count and 0 <= target_col < col_count:
+                    colorButtonList[target_row][target_col].setColor(hex_val)
+                    time.sleep(0.01)
+            window.update()
+
+def playAnimation():
+    global animate
+    selected_path = filedialog.askdirectory(title="Select Animation Folder")
+    if not selected_path: return
+
+    files = sorted([f for f in os.listdir(selected_path) if f.endswith('.txt')])
+    if not files: return
+
+    animate = True
+    while animate:
+        for filename in files:
+            if not animate: break
+            f_path = os.path.join(selected_path, filename)
+            try:
+                with open(f_path, "r") as f:
+                    file_data = [ [c.strip() for c in line.split(",") if c.strip()] for line in f if line.strip() ]
+
+                    for r in range(len(file_data)):
+                        for c in range(len(file_data[r])):
+                            hex_val = file_data[r][c]
+                            target_row = c
+                            target_col = (col_count - 1) - r
+                            if 0 <= target_row < row_count and 0 <= target_col < col_count:
+                                colorButtonList[target_row][target_col].setColor(hex_val)
+                                time.sleep(0.005) 
+                    window.update()
+                    time.sleep(0.15) 
+            except Exception as e:
+                print(f"Error: {e}")
+                
+def stopAnimation():
     global animate
     animate = False
 
-    for i in range(row):
-        for j in range(column):
-            colorButtonList[i][j].resetColor()
-
-def saveImage() -> None:
-    def saveText(event=None) -> None:
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        if(event == None): # For save box
-            text : str = script_dir + "/Saves/" + inputText.get("1.0","end-1c") + '.txt'
-        else: # For Enter Key
-            text : str = script_dir + "/Saves/" + inputText.get("1.0","end-2c") + '.txt'
-
-        questionBox.destroy()
-
-        file = open(text, 'w')
-        for i in range(row):
-            for j in range(column):
-                file.write(colorButtonList[i][j].getColor())
-                if(not (i == row - 1 and j == column - 1)):
-                    file.write(', ')
-            file.write('\n')
-
-    questionBox = tk.Toplevel(window)
-    questionBox.title("Save Image")
-    questionBox.geometry(str(("500x50+%d+%d" % (int(screenWidth/2.5), int(screenHeight/3)))))
-    questionBox.attributes('-topmost',True)
-    questionBox.bind('<Return>', saveText)
-
-    inputText = tk.Text(questionBox, height = 1,
-                width = 25,
-                bg = "light yellow")
-
-    inputText.pack(side= 'left', pady = 10, padx = 10)
-
-    tk.Label(questionBox, text=".txt").pack(side = 'left', pady = 10, padx = 10)
-
-    saveButton = tk.Button(questionBox, height = 2,
-                 width = 10,
-                 text ="save",
-                 command = saveText)
-    saveButton.pack(pady=1)
-
-def loadImage() -> None:
-    # Get the directory where the script is actually located
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    initial_dir = os.path.join(script_dir, "Saves")
-    
-    # Create directory if it doesn't exist to avoid errors
-    if not os.path.exists(initial_dir):
-        os.makedirs(initial_dir)
-
-    file_path = filedialog.askopenfilename(
-        initialdir=initial_dir,
-        filetypes=[("Text files", "*.txt")]
-    )
-
-    if file_path: # Only proceed if a file was selected
-        loadImage2(file_path)
-
-
-def loadImage2(file_name: str) -> None:
-    if not file_name:
-        return
-
-    try:
-        with open(file_name, "r") as file:
-            # Read all lines and strip whitespace
-            lines = [line.strip() for line in file if line.strip()]
-            
-            for i, line in enumerate(lines):
-                if i >= row: break # Safety: don't exceed grid rows
-                
-                # Split and filter out any empty strings caused by trailing commas
-                colors = [c.strip() for c in line.split(",") if c.strip()]
-                
-                for j, color in enumerate(colors):
-                    if j >= column: break # Safety: don't exceed grid columns
-                    
-                    # 1. Update the GUI object
-                    # Note: We use colorButtonList[i][j] to match your save order
-                    colorButtonList[i][j].button.configure(bg=color)
-                    
-                    # 2. Update the Arduino Hardware
-                    if serialObj and serialObj.is_open:
-                        # Ensure led_index matches your setColor logic: (row * total_columns) + col
-                        led_index = (i * column) + j
-                        r, g, b = Hex_RGB(color)
-                        
-                        # Added \n to ensure the Arduino knows the command ended
-                        payload = f"{led_index} {r} {g} {b}\n"
-                        serialObj.write(payload.encode())
-                        
-                        # 2ms - 5ms delay is usually needed so Arduino doesn't drop packets
-                        time.sleep(0.002) 
-                        
-    except FileNotFoundError:
-        print(f"Error: {file_name} not found")
-    except Exception as e:
-        print(f"Error loading image: {e}")
-
-
-def loadMany() -> None:
-    global animate
-    global color_code
-
-    animate = True
-    path_name = filedialog.askdirectory(initialdir=os.curdir + "/Python/Saves/")
-    files = os.listdir(path_name)
-    files.sort()
-    print(files)
-
-    i : int = 0
-    now : time = time.time()
-    while(animate == True):
-        if(i == len(files)):
-            i = 0
-
-        file_name = files[i]
-        loadImage2(path_name+'/'+file_name)
-
-        if(int(time.time() - now) >= .5):
-            print(file_name)
-            i+=1
-            now = time.time()
-
-
-def eyeDrop() -> None:
+def eyeDrop():
     global button_mode
     button_mode = False
     window.config(cursor="plus")
 
-def makeColorButton() -> None:
-    color_chooser = tk.Button(
-        window,
-        text="RGB",
-        command = chooseColor
-    )
+def makeButtons():
+    control_frame = tk.Frame(window)
+    control_frame.grid(row=row_count, column=0, columnspan=col_count, sticky="we", pady=5)
+    
+    top_row = tk.Frame(control_frame)
+    top_row.pack(side="top", fill="x")
+    tk.Label(top_row, text="Bright:").pack(side="left", padx=2)
+    b_slider = tk.Scale(top_row, from_=0, to=100, orient="horizontal", command=updateBrightness, length=120)
+    b_slider.set(20) 
+    b_slider.pack(side="left", padx=5)
 
-    window.rowconfigure(row + 1, weight=0)
-    color_chooser.grid(sticky="nswe", row= row + 2, column=round(column/2))
+    mid_row = tk.Frame(control_frame)
+    mid_row.pack(side="top", fill="x", pady=2)
+    tk.Button(mid_row, text="Test",  command=testRainbow).pack(side="left", expand=True, fill="x")
+    tk.Button(mid_row, text="RGB",   command=chooseColor).pack(side="left", expand=True, fill="x")
+    tk.Button(mid_row, text="Pick",  command=eyeDrop).pack(side="left", expand=True, fill="x")
+    tk.Button(mid_row, text="Fill",  command=fillCanvas).pack(side="left", expand=True, fill="x")
+    tk.Button(mid_row, text="Clear", command=clearCanvas).pack(side="left", expand=True, fill="x")
 
+    bot_row = tk.Frame(control_frame)
+    bot_row.pack(side="top", fill="x", pady=2)
+    tk.Button(bot_row, text="Save",  command=saveImage).pack(side="left", expand=True, fill="x")
+    tk.Button(bot_row, text="Load",  command=loadImage).pack(side="left", expand=True, fill="x")
+    tk.Button(bot_row, text="▶ Play", fg="green", command=lambda: Thread(target=playAnimation, daemon=True).start()).pack(side="left", expand=True, fill="x")
+    tk.Button(bot_row, text="■ Stop", fg="red", command=stopAnimation).pack(side="left", expand=True, fill="x")
 
-def makeClearButton() -> None:
-    clear = tk.Button(
-        window,
-        text="Clear",
-        command=clearCanvas
-    )
-
-    window.rowconfigure(row + 1, weight=0)
-    clear.grid(sticky="nswe", row= row + 2, column=column-3)
-
-def makeLoadButton() -> None:
-    load = tk.Button(
-        window,
-        text="Load",
-        command=loadImage
-    )
-
-    window.rowconfigure(row + 1, weight=0)
-    load.grid(sticky="nswe", row= row + 2, column=0)
-
-def makeLoadManyButton() -> None:
-    load = tk.Button(
-        window,
-        text="Anim",
-        command= lambda: Thread(target=loadMany).start()
-    )
-
-    window.rowconfigure(row + 1, weight=0)
-    load.grid(sticky="nswe", row= row + 2, column=1)
-
-def makeSaveButton() -> None:
-    save = tk.Button(
-        window,
-        text="Save",
-        command=saveImage
-    )
-
-    window.rowconfigure(row + 1, weight=0)
-    save.grid(sticky="nswe", row= row + 2, column=column-1)
-
-def makeColorPickerButton() -> None:
-    picker = tk.Button(
-        window,
-        text="Picker",
-        command=eyeDrop
-    )
-
-    window.rowconfigure(row + 1, weight=0)
-    picker.grid(sticky="nswe", row= row + 2, column= round(column/2) - 1)
-
-
-def serialBegin(comPort : str) -> serial.Serial:
+if __name__ == "__main__":
     try:
-        serialObj = serial.Serial(comPort)
-        serialObj.baudrate = 9600
-        serialObj.bytesize = 8
-        serialObj.parity = 'N'
-        serialObj.stopbits = serial.STOPBITS_ONE
-    except serial.SerialException:
-        print("Could not open", comPort)
-        return None
+        serialObj = serial.Serial("/dev/ttyUSB0", 115200, timeout=1)
+        time.sleep(2)
+    except Exception as e:
+        print(f"Serial Error: {e}")
+        serialObj = None
 
-    return serialObj
+    button_mode = True
+    color_code = '#ffffff' 
+    brightness = 0.2
+    animate = False
 
-def Hex_RGB(hex : str) -> tuple:
-    return tuple(int(hex.lstrip('#')[i:i+2],16) for i in (0, 2, 4))
-
-if __name__== "__main__":
-    # serialObj = serialBegin('COM' + input("Serial Number: "))
-    serialObj = serialBegin("COM4")
-    if serialObj:
-        print("Connected! Waiting for Arduino to reset...")
-        time.sleep(2) # CRITICAL: Arduinos reset when serial opens
-
-    button_mode : bool = True
-    color_code : str = off_color # White
-    animate : bool = False
-    # row : int = int(input("Row Size: "))
-    # column : int = int(input("Column Size: "))
-    row    : int = 10
-    column : int = 10
-
-    screenWidth, screenHeight = gui.size()
     window = tk.Tk()
-    window.geometry(str(("500x500+%d+%d" % (int(screenWidth/2.5), int(screenHeight/3)))))
-    window.attributes('-topmost', 1)
-    window.title("Color Grid")
+    window.title("Matrix Master")
+    window.geometry("700x850") # Made a bit taller for the buttons
 
-    colorButtonList = []
-    for i in range(row):
-        colorButtonList.append([])
-        for j in range(column):
-            Button = LEDButton(i, j)
-            colorButtonList[i].append(Button)
+    colorButtonList = [[LEDButton(i, j) for j in range(col_count)] for i in range(row_count)]
 
-    makeColorButton()
-    makeClearButton()
-    makeSaveButton()
-    makeLoadButton()
-    makeLoadManyButton()
-    makeColorPickerButton()
-
+    makeButtons()
     window.mainloop()

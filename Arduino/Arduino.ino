@@ -1,70 +1,71 @@
 #include <Adafruit_NeoPixel.h>
 
-constexpr int led_pin = 5;
-constexpr int led_count = 100;
-const bool debug = false;
+#define LED_PIN    5
+#define LED_COUNT 100
 
-int colorArr[4] = {-1, -1, -1, -1}; // LED #, R, G, B,
-Adafruit_NeoPixel strip(led_count, led_pin, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 
-void test_LEDS() {
-  rainbow(5);
-  delay(10);
+void setup() {
+  strip.begin();
+  
+  // --- STARTUP CHECK --- 
+  // If this doesn't light up when you run Python, the COM port is wrong.
+  strip.setPixelColor(0, 0, 255, 0); // Bright Green
+  strip.show();
+  delay(1000);
   strip.clear();
-}
+  strip.show();
 
-void setup(){
-  strip.begin();           // Initialize NeoPixel object
-  strip.setBrightness(255); // Set BRIGHTNESS to about 4% (max = 255)
-  strip.show();            // Initialize all pixels to 'off'
-  Serial.begin(9600);
+  Serial.begin(115200);
+  Serial.setTimeout(10); 
 }
 
 void loop() {
-  if (!debug && Serial.available() > 0) {
-    // Read until a newline for faster response
-    String input = Serial.readStringUntil('\n'); 
-    split(input, ' ');
+  if (Serial.available() > 0) {
+    // Check if it's a Test signal first
+    if (Serial.peek() == 'T' || Serial.peek() == 't') {
+      Serial.read(); // Clear the 'T'
+      rainbow(5);
+      return;
+    }
 
-    strip.setPixelColor(colorArr[0], colorArr[1], colorArr[2], colorArr[3]);
-    strip.show();
-  } else if (debug) {
-    test_LEDS();
-  }
-}
+    // Use parseInt to grab the 4 numbers directly
+    int idx = Serial.parseInt();
+    int r   = Serial.parseInt();
+    int g   = Serial.parseInt();
+    int b   = Serial.parseInt();
 
-/**
- * Splits a delimited string into integers and stores them in a global array.
- * * This function iterates through a string, parses segments separated by a 
- * specific character (e.g., a comma), converts those segments to integers, 
- * and populates the global 'colorArr' array with the results.
- *
- * @param str   The input String containing delimited numeric values.
- * @param split The delimiter character used to separate values (e.g., ',' or ':').
- * * @note This function assumes 'colorArr' is large enough to hold all parsed values.
- * @warning Relies on the global variable 'colorArr'. Be careful of buffer overflows
- * if the input string contains more segments than the array size.
- */
-void split(String str, const char split){
-  int index = 0;
-  Serial.println(str);
-  String temp = "";
-  
-  for(int i = 0; i <= str.length(); ++i){
-    if(str[i] == split || str[i] == '\0'){
-      	colorArr[index] = temp.toInt();
-      	++index;
-      	temp = "";	
-    }else{
-      temp += str[i];
+    // Check for the newline to clear the buffer
+    if (Serial.read() == '\n' || Serial.available() > 0) {
+      // ONLY update if the index is valid
+      if (idx >= 0 && idx < LED_COUNT) {
+        strip.setPixelColor(idx, r, g, b);
+        strip.show();
+      }
     }
   }
 }
 
+// Simple but robust parser
+bool parse(String s, int* arr) {
+  int count = 0;
+  int lastIdx = 0;
+  for (int i = 0; i < s.length(); i++) {
+    if (s[i] == ' ') {
+      arr[count++] = s.substring(lastIdx, i).toInt();
+      lastIdx = i + 1;
+      if (count >= 3) break;
+    }
+  }
+  arr[count++] = s.substring(lastIdx).toInt();
+  return (count == 4); // Returns true only if we found 4 numbers
+}
+
 void rainbow(int wait) {
-  for(long firstPixelHue = 0; firstPixelHue < 256*100; firstPixelHue += 256) {
+  for(long firstPixelHue = 0; firstPixelHue < 5*65536; firstPixelHue += 256) {
     strip.rainbow(firstPixelHue);
-    strip.show(); // Update strip with new contents
-    delay(wait);  // Pause for a moment
+    strip.show();
+    delay(wait);
+    if (Serial.available() > 0) return; // Stop if user clicks a button
   }
 }
