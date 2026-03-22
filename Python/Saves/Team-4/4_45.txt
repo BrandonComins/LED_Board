@@ -1,0 +1,10 @@
+#ffffff, #ffffff, #ffffff, #ffffff, #ffffff, #ffffff, #ffffff, #ffffff, #ffffff, #ffffff
+#ffffff, #ffffff, #0000ff, #ffffff, #0000ff, #ffffff, #ffffff, #ffffff, #ffffff, #ffffff
+#ffffff, #ffffff, #0000ff, #ffffff, #0000ff, #ffffff, #ffffff, #ffffff, #ffffff, #ffffff
+#ffffff, #ffffff, #0000ff, #0000ff, #0000ff, #ffffff, #ffffff, #ffffff, #ffffff, #ffffff
+#ffffff, #ffffff, #ffffff, #ffffff, #0000ff, #ffffff, #ffffff, #ffffff, #ffffff, #ffffff
+#ffffff, #ffffff, #ffffff, #ffffff, #0000ff, #ffffff, #ffffff, #ffffff, #ffffff, #ffffff
+#ffffff, #ffffff, #ffffff, #ffffff, #ffffff, #ffffff, #ffffff, #ffffff, #ffffff, #ffffff
+#ffffff, #ffffff, #ffffff, #ffffff, #ffffff, #ffffff, #ffffff, #ffffff, #ffffff, #ffffff
+#ffffff, #ffffff, #ffffff, #ffffff, #ffffff, #ffffff, #ffffff, #ffffff, #ffffff, #ffffff
+#ffffff, #ffffff, #ffffff, #ffffff, #ffffff, #ffffff, #ffffff, #ffffff, #ffffff, #ffffff
