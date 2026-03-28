@@ -26,55 +26,59 @@ class LEDButton:
         window.rowconfigure(self.row, weight=1)
 
     def doAction(self):
-        global button_mode
+        global button_mode, color_code
         if button_mode:
-            self.setColor()
+            # Update GUI color
+            self.button.configure(bg=color_code)
+            # Sync the whole frame to Arduino using the new Protocol
+            sendFullFrame()
         else:
-            global color_code
             color_code = self.getColor()
             button_mode = True
             window.config(cursor="arrow")
-
-    def setColor(self, target_color=None):
-        global color_code, brightness, serialObj
-        new_color = target_color if target_color else color_code
-        
-        self.button.configure(bg=new_color)
-
-        if serialObj and serialObj.is_open:
-            # --- RESTORED INDEX MATH (Serpentine) ---
-            if self.row % 2 == 0:
-                target_col = (col_count - 1) - self.col
-            else:
-                target_col = self.col
-            led_index = (self.row * col_count) + target_col
-
-            # --- CONVERT COLOR ---
-            r, g, b = Hex_RGB(new_color)
-            r_val = int(r * brightness)
-            g_val = int(g * brightness)
-            b_val = int(b * brightness)
-
-            # --- SEND DATA ---
-            payload = f"{int(led_index)} {r_val} {g_val} {b_val}\n"
-            serialObj.write(payload.encode('utf-8'))
 
     def getColor(self):
         return self.button.cget('bg')
 
 # --- Logic Functions ---
 
+def sendFullFrame():
+    """Converts the GUI grid into a GRB binary packet for the Arduino."""
+    if not serialObj or not serialObj.is_open:
+        return
+
+    packet = bytearray()
+    packet.append(ord('X')) # Bulk Update Header
+
+    for r in range(row_count):
+        # Serpentine Logic (Matches physical wiring)
+        if r % 2 == 0:
+            cols = range(col_count)
+        else:
+            cols = reversed(range(col_count))
+            
+        for c in cols:
+            color_hex = colorButtonList[r][c].getColor()
+            r_val, g_val, b_val = Hex_RGB(color_hex)
+            
+            # Apply brightness and clamp 0-255
+            # ENFORCING GRB ORDER: Green, then Red, then Blue
+            g_final = max(0, min(255, int(g_val * brightness)))
+            r_final = max(0, min(255, int(r_val * brightness)))
+            b_final = max(0, min(255, int(b_val * brightness)))
+            
+            packet.append(r_final) 
+            packet.append(g_final) 
+            packet.append(b_final)
+
+    serialObj.write(packet)
+    serialObj.flush()
+
 def updateBrightness(val):
     global brightness
     brightness = float(val) / 100.0
-    
-    # This loop refreshes all buttons instantly when you slide the bar
-    if serialObj and serialObj.is_open:
-        for r in range(row_count):
-            for c in range(col_count):
-                current_hex = colorButtonList[r][c].getColor()
-                colorButtonList[r][c].setColor(current_hex)
-            window.update_idletasks() # Keeps the slider smooth
+    # Refresh the matrix instantly when sliding
+    sendFullFrame()
 
 def Hex_RGB(hex_str):
     hex_str = hex_str.lstrip('#')
@@ -87,30 +91,9 @@ def chooseColor():
         color_code = chosen
     return color_code
 
-def clearCanvas():
-    global animate
-    animate = False
-    print("Clearing Matrix...")
-    for r in range(row_count):
-        for c in range(col_count):
-            colorButtonList[r][c].setColor(off_color)
-            time.sleep(0.005) # Slightly faster clear
-        window.update() 
-    print("Clear Complete.")
-
-def fillCanvas():
-    global color_code
-    print(f"Filling Matrix with {color_code}...")
-    for r in range(row_count):
-        for c in range(col_count):
-            colorButtonList[r][c].setColor(color_code)
-            time.sleep(0.005)
-        window.update()
-    print("Fill Complete.")
-
 def testRainbow():
     if serialObj and serialObj.is_open:
-        serialObj.write(b"T\n")
+        serialObj.write(b"T") # Arduino handles 'T' as the rainbow trigger
 
 def saveImage():
     path = os.path.join(os.path.dirname(__file__), "Saves")
@@ -124,7 +107,7 @@ def saveImage():
             for r_file in range(row_count):
                 row_string_list = []
                 for c_file in range(col_count):
-                    # Fixed rotation: reverse the "Mario flip"
+                    # Rotation logic to match your saved file format
                     gui_row = c_file
                     gui_col = (row_count - 1) - r_file
                     color = colorButtonList[gui_row][gui_col].getColor()
@@ -132,28 +115,42 @@ def saveImage():
                 
                 line = ", ".join(row_string_list) + ", \n"
                 f.write(line)
-        print(f"Saved: {os.path.basename(f_path)}")
+
+def clearCanvas():
+    global animate
+    animate = False
+    for r in range(row_count):
+        for c in range(col_count):
+            colorButtonList[r][c].button.configure(bg=off_color)
+    window.update()
+    sendFullFrame()
+
+def fillCanvas():
+    global color_code
+    for r in range(row_count):
+        for c in range(col_count):
+            colorButtonList[r][c].button.configure(bg=color_code)
+    window.update()
+    sendFullFrame()
 
 def loadImage():
     path = os.path.join(os.path.dirname(__file__), "Saves")
     f_path = filedialog.askopenfilename(initialdir=path, filetypes=[("Text", "*.txt")])
     if f_path:
         with open(f_path, "r") as f:
-            file_data = []
-            for line in f:
-                if line.strip():
-                    colors = [c.strip() for c in line.split(",") if c.strip()]
-                    file_data.append(colors)
+            file_data = [[c.strip() for c in line.split(",") if c.strip()] for line in f if line.strip()]
 
         for r in range(len(file_data)):
             for c in range(len(file_data[r])):
                 hex_val = file_data[r][c]
+                # Match your rotation logic
                 target_row = c
                 target_col = (col_count - 1) - r
                 if 0 <= target_row < row_count and 0 <= target_col < col_count:
-                    colorButtonList[target_row][target_col].setColor(hex_val)
-                    time.sleep(0.01)
-            window.update()
+                    colorButtonList[target_row][target_col].button.configure(bg=hex_val)
+        
+        window.update()
+        sendFullFrame()
 
 def playAnimation():
     global animate
@@ -170,7 +167,7 @@ def playAnimation():
             f_path = os.path.join(selected_path, filename)
             try:
                 with open(f_path, "r") as f:
-                    file_data = [ [c.strip() for c in line.split(",") if c.strip()] for line in f if line.strip() ]
+                    file_data = [[c.strip() for c in line.split(",") if c.strip()] for line in f if line.strip()]
 
                     for r in range(len(file_data)):
                         for c in range(len(file_data[r])):
@@ -178,12 +175,12 @@ def playAnimation():
                             target_row = c
                             target_col = (col_count - 1) - r
                             if 0 <= target_row < row_count and 0 <= target_col < col_count:
-                                colorButtonList[target_row][target_col].setColor(hex_val)
-                                time.sleep(0.005) 
-                    window.update()
-                    time.sleep(0.15) 
-            except Exception as e:
-                print(f"Error: {e}")
+                                colorButtonList[target_row][target_col].button.configure(bg=hex_val)
+                window.update()
+                sendFullFrame()
+                time.sleep(0.15) 
+            except:
+                continue
                 
 def stopAnimation():
     global animate
@@ -222,6 +219,7 @@ def makeButtons():
 
 if __name__ == "__main__":
     try:
+        # NOTE: Ensure /dev/ttyUSB0 is correct
         serialObj = serial.Serial("/dev/ttyUSB0", 115200, timeout=1)
         time.sleep(2)
     except Exception as e:
@@ -235,7 +233,7 @@ if __name__ == "__main__":
 
     window = tk.Tk()
     window.title("Matrix Master")
-    window.geometry("700x850") # Made a bit taller for the buttons
+    window.geometry("700x850") 
 
     colorButtonList = [[LEDButton(i, j) for j in range(col_count)] for i in range(row_count)]
 

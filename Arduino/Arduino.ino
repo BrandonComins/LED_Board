@@ -7,58 +7,33 @@ Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 
 void setup() {
   strip.begin();
-  
-  // --- STARTUP CHECK --- 
-  // If this doesn't light up when you run Python, the COM port is wrong.
-  strip.setPixelColor(0, 0, 255, 0); // Bright Green
   strip.show();
-  delay(1000);
-  strip.clear();
-  strip.show();
-
   Serial.begin(115200);
-  Serial.setTimeout(10); 
+  Serial.setTimeout(50); // Fast timeout for responsive updates
 }
 
 void loop() {
   if (Serial.available() > 0) {
-    // Check if it's a Test signal first
-    if (Serial.peek() == 'T' || Serial.peek() == 't') {
-      Serial.read(); // Clear the 'T'
-      rainbow(5);
-      return;
-    }
+    char header = Serial.read();
 
-    // Use parseInt to grab the 4 numbers directly
-    int idx = Serial.parseInt();
-    int r   = Serial.parseInt();
-    int g   = Serial.parseInt();
-    int b   = Serial.parseInt();
-
-    // Check for the newline to clear the buffer
-    if (Serial.read() == '\n' || Serial.available() > 0) {
-      // ONLY update if the index is valid
-      if (idx >= 0 && idx < LED_COUNT) {
-        strip.setPixelColor(idx, r, g, b);
+    if (header == 'X') {
+      uint8_t buffer[300];
+      // Read exactly 300 bytes (100 LEDs * 3 colors)
+      size_t n = Serial.readBytes(buffer, 300);
+      
+      if (n == 300) {
+        for (int i = 0; i < LED_COUNT; i++) {
+          // Data is already in G-R-B order from Python
+          strip.setPixelColor(i, buffer[i*3], buffer[i*3+1], buffer[i*3+2]);
+        }
         strip.show();
       }
+    } 
+    else if (header == 'T') {
+      rainbow(5);
+      while(Serial.available() > 0) Serial.read(); // Clear buffer after rainbow
     }
   }
-}
-
-// Simple but robust parser
-bool parse(String s, int* arr) {
-  int count = 0;
-  int lastIdx = 0;
-  for (int i = 0; i < s.length(); i++) {
-    if (s[i] == ' ') {
-      arr[count++] = s.substring(lastIdx, i).toInt();
-      lastIdx = i + 1;
-      if (count >= 3) break;
-    }
-  }
-  arr[count++] = s.substring(lastIdx).toInt();
-  return (count == 4); // Returns true only if we found 4 numbers
 }
 
 void rainbow(int wait) {
@@ -66,6 +41,7 @@ void rainbow(int wait) {
     strip.rainbow(firstPixelHue);
     strip.show();
     delay(wait);
-    if (Serial.available() > 0) return; // Stop if user clicks a button
+    // If a new command 'X' arrives, stop the rainbow immediately
+    if (Serial.available() > 0 && Serial.peek() == 'X') return;
   }
 }
